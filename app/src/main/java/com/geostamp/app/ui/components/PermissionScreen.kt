@@ -63,7 +63,7 @@ fun PermissionStateCard(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Location Permission Required",
+            text = "Camera & Location Required",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -74,9 +74,9 @@ fun PermissionStateCard(
 
         Text(
             text = if (isPermanentlyDenied) {
-                "GeoStamp needs access to your device's GPS to display and stamp your real-time coordinates. Permission was permanently denied. Please enable it in App Settings."
+                "GeoStamp needs access to your device camera to take photos and GPS location to stamp coordinates on them. Permission was denied. Please enable them in App Settings."
             } else {
-                "GeoStamp uses real-time GPS and location services to display your exact coordinates, altitude, accuracy, and address on the map."
+                "GeoStamp needs camera permission to capture photos and GPS location permission to stamp your real-time coordinates, altitude, and address on the image."
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

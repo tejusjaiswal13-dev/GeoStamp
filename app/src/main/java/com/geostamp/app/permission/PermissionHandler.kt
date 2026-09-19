@@ -24,6 +24,30 @@ object PermissionHandler {
         Manifest.permission.ACCESS_COARSE_LOCATION
     )
 
+    /** Complete set of permissions required for the GPS camera: Camera + Location. */
+    val APP_PERMISSIONS = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
+    /**
+     * Checks whether camera permission is granted.
+     */
+    fun hasCameraPermission(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * Checks whether all required permissions (camera and location) are granted.
+     */
+    fun hasAllPermissions(context: Context): Boolean {
+        return hasCameraPermission(context) && hasLocationPermission(context)
+    }
+
     /**
      * Checks whether the app has been granted either fine or coarse location permission.
      *
