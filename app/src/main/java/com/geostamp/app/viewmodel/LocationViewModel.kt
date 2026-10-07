@@ -17,7 +17,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel managing the location state and actions for the GeoStamp application.
+ * ViewModel managing the location lifecycle, permissions, real-time GPS fixes,
+ * and automatic recovery when system location providers are toggled.
  */
 class LocationViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -31,8 +32,34 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
     private var lastLocationData: LocationData? = null
     private var lastAddressData: AddressData? = null
 
+    init {
+        // Automatically monitor location provider status changes in real-time
+        viewModelScope.launch {
+            locationRepository.locationServicesEnabledFlow().collect { isEnabled ->
+                val context = getApplication<Application>()
+                if (!isEnabled) {
+                    locationUpdatesJob?.cancel()
+                    locationUpdatesJob = null
+                    _uiState.value = LocationUiState.ServiceDisabled
+                } else {
+                    // System location services are enabled.
+                    // Automatically reacquire location if permissions are granted.
+                    if (PermissionHandler.hasLocationPermission(context)) {
+                        if (_uiState.value is LocationUiState.ServiceDisabled ||
+                            locationUpdatesJob == null ||
+                            locationUpdatesJob?.isActive == false
+                        ) {
+                            startLocationTracking()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /**
-     * Called when the screen appears or when permission status changes.
+     * Checks permissions and location services status, starting tracking if available.
+     * Called on screen entry and on Activity lifecycle ON_RESUME.
      */
     fun checkAndStartLocation() {
         val context = getApplication<Application>()
@@ -47,7 +74,10 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        startLocationTracking()
+        // Only start if not already actively receiving updates
+        if (locationUpdatesJob == null || locationUpdatesJob?.isActive == false) {
+            startLocationTracking()
+        }
     }
 
     /**
@@ -62,29 +92,36 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Starts continuous location updates and immediately tries to fetch the last known location.
+     * Starts continuous high-accuracy location tracking and immediately loads
+     * any recent cached fix to minimize initial wait time.
      */
     private fun startLocationTracking() {
-        _uiState.value = LocationUiState.Loading
+        if (_uiState.value !is LocationUiState.Available) {
+            _uiState.value = LocationUiState.Loading
+        }
 
-        // Attempt immediate last known location for quick response
+        // Quick bootstrap: Fetch last known location immediately
         viewModelScope.launch {
             val lastLoc = locationRepository.getLastLocation()
             if (lastLoc != null && _uiState.value is LocationUiState.Loading) {
                 lastLocationData = lastLoc
                 val address = geocodingRepository.getAddress(lastLoc.latitude, lastLoc.longitude)
                 lastAddressData = address
-                _uiState.value = LocationUiState.Available(lastLoc, address)
+                _uiState.value = LocationUiState.Available(
+                    data = lastLoc,
+                    address = address,
+                    isAcquiringBetterFix = !lastLoc.isHighAccuracy
+                )
             }
         }
 
-        // Start continuous updates
+        // Start continuous high-accuracy updates
         locationUpdatesJob?.cancel()
         locationUpdatesJob = viewModelScope.launch {
             locationRepository.locationUpdates()
                 .catch { e ->
                     _uiState.value = LocationUiState.Error(
-                        e.localizedMessage ?: "Failed to get location updates"
+                        e.localizedMessage ?: "Failed to get GPS location updates"
                     )
                 }
                 .collect { locationData ->
@@ -94,7 +131,12 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
                         locationData.longitude
                     ) ?: lastAddressData
                     lastAddressData = address
-                    _uiState.value = LocationUiState.Available(locationData, address)
+
+                    _uiState.value = LocationUiState.Available(
+                        data = locationData,
+                        address = address,
+                        isAcquiringBetterFix = !locationData.isHighAccuracy
+                    )
                 }
         }
     }
@@ -113,7 +155,6 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        // If we don't have a location yet, show loading
         if (_uiState.value !is LocationUiState.Available) {
             _uiState.value = LocationUiState.Loading
         }
@@ -127,10 +168,16 @@ class LocationViewModel(application: Application) : AndroidViewModel(application
                         freshLocation.longitude
                     ) ?: lastAddressData
                     lastAddressData = address
-                    _uiState.value = LocationUiState.Available(freshLocation, address)
+                    _uiState.value = LocationUiState.Available(
+                        data = freshLocation,
+                        address = address,
+                        isAcquiringBetterFix = !freshLocation.isHighAccuracy
+                    )
                 }
             } else if (_uiState.value !is LocationUiState.Available) {
-                _uiState.value = LocationUiState.Unavailable("Unable to determine current location. Try moving outdoors.")
+                _uiState.value = LocationUiState.Unavailable(
+                    "Unable to determine current location. Please verify GPS signal."
+                )
             }
         }
     }

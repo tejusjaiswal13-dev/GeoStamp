@@ -8,13 +8,10 @@ import android.location.LocationManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 
 /**
- * Centralized handler for location-related permissions and settings navigation.
- *
- * Provides utility functions to check whether location permissions have been granted,
- * whether location services are enabled on the device, and to navigate the user to
- * the relevant system settings screens.
+ * Centralized handler for location and camera permissions and settings navigation.
  */
 object PermissionHandler {
 
@@ -42,18 +39,17 @@ object PermissionHandler {
     }
 
     /**
-     * Checks whether all required permissions (camera and location) are granted.
+     * Checks whether high-accuracy (fine) location permission is granted.
      */
-    fun hasAllPermissions(context: Context): Boolean {
-        return hasCameraPermission(context) && hasLocationPermission(context)
+    fun hasFineLocationPermission(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     /**
-     * Checks whether the app has been granted either fine or coarse location permission.
-     *
-     * @param context The [Context] used to check permission status.
-     * @return `true` if at least one of [Manifest.permission.ACCESS_FINE_LOCATION] or
-     *         [Manifest.permission.ACCESS_COARSE_LOCATION] is granted, `false` otherwise.
+     * Checks whether either fine or coarse location permission is granted.
      */
     fun hasLocationPermission(context: Context): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -67,36 +63,41 @@ object PermissionHandler {
     }
 
     /**
-     * Checks whether location services (GPS or network provider) are enabled on the device.
-     *
-     * @param context The [Context] used to access [LocationManager].
-     * @return `true` if either [LocationManager.GPS_PROVIDER] or
-     *         [LocationManager.NETWORK_PROVIDER] is enabled, `false` otherwise.
+     * Checks whether all required permissions (camera and location) are granted.
+     */
+    fun hasAllPermissions(context: Context): Boolean {
+        return hasCameraPermission(context) && hasLocationPermission(context)
+    }
+
+    /**
+     * Checks whether location services (GPS or network provider) are currently enabled on the device.
      */
     fun isLocationEnabled(context: Context): Boolean {
-        val locationManager =
-            context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            ?: return false
+        return LocationManagerCompat.isLocationEnabled(locationManager)
     }
 
     /**
      * Opens the system Location Settings screen so the user can enable location services.
-     *
-     * @param context The [Context] used to launch the settings activity.
      */
     fun openLocationSettings(context: Context) {
         val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Fallback to general settings if location settings cannot be opened directly
+            val fallbackIntent = Intent(Settings.ACTION_SETTINGS).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(fallbackIntent)
+        }
     }
 
     /**
-     * Opens the application detail settings screen for this app, where the user can
-     * manage permissions, storage, notifications, and other per-app settings.
-     *
-     * @param context The [Context] used to launch the settings activity.
+     * Opens the application detail settings screen for this app.
      */
     fun openAppSettings(context: Context) {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {

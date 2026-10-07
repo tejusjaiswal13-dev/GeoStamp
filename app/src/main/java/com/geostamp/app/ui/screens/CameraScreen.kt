@@ -5,15 +5,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,11 +31,9 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,7 +67,11 @@ import kotlinx.coroutines.launch
 fun CameraScreen(
     locationData: LocationData?,
     addressData: AddressData?,
+    isLocationEnabled: Boolean,
+    hasLocationPermission: Boolean,
     onSwitchToMap: () -> Unit,
+    onRequestPermission: () -> Unit,
+    onEnableLocation: () -> Unit,
     onOpenAbout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -214,21 +212,25 @@ fun CameraScreen(
             }
         }
 
-        // 3. Bottom Section: Stamp Overlay + Shutter Controls
+        // 3. Bottom Section: Compact Stamp Overlay + Shutter Controls
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(bottom = 32.dp),
+                .padding(bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Live GPS Location Stamp Card
+            // Live Clean GPS Location Stamp Card
             CameraLocationStampOverlay(
                 location = locationData,
-                address = addressData
+                address = addressData,
+                isLocationEnabled = isLocationEnabled,
+                hasLocationPermission = hasLocationPermission,
+                onRequestPermission = onRequestPermission,
+                onEnableLocation = onEnableLocation
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Shutter Controls Row
             Row(
@@ -286,6 +288,7 @@ fun CameraScreen(
                                 onSuccess = { rawBitmap ->
                                     coroutineScope.launch {
                                         val stampedBitmap = PhotoStamper.stampPhoto(
+                                            context = context,
                                             sourceBitmap = rawBitmap,
                                             location = locationData,
                                             address = addressData
@@ -301,7 +304,7 @@ fun CameraScreen(
 
                                         Toast.makeText(
                                             context,
-                                            "Photo stamped and saved to Pictures/GeoStamp!",
+                                            "GeoStamped photo saved to Pictures/GeoStamp!",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }

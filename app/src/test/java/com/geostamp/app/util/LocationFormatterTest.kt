@@ -58,4 +58,13 @@ class LocationFormatterTest {
         val url = LocationFormatter.getGoogleMapsUrl(25.4358, 81.8463)
         assertTrue(url.startsWith("https://maps.google.com/?q=25.435800,81.846300"))
     }
+
+    @Test
+    fun formatCardinalCoordinates_formatsCorrectly() {
+        val northEast = LocationFormatter.formatCardinalCoordinates(25.4358, 81.8463)
+        assertEquals("25.435800° N, 81.846300° E", northEast)
+
+        val southWest = LocationFormatter.formatCardinalCoordinates(-33.8688, -151.2093)
+        assertEquals("33.868800° S, 151.209300° W", southWest)
+    }
 }

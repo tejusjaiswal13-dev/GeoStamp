@@ -1,7 +1,11 @@
 package com.geostamp.app.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,14 +19,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.GpsFixed
-import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,152 +44,230 @@ import com.geostamp.app.ui.theme.AccuracyPoor
 import com.geostamp.app.util.LocationFormatter
 
 /**
- * Live GPS stamp card overlay displayed directly on top of the camera viewfinder.
- * Matches the aesthetic of the reference GPS Camera apps.
+ * Clean, compact, outdoor-readable location overlay on the camera viewfinder.
+ * Clearly communicates real-time GPS acquisition status and displays concise location metadata.
  */
 @Composable
 fun CameraLocationStampOverlay(
     location: LocationData?,
     address: AddressData?,
+    isLocationEnabled: Boolean,
+    hasLocationPermission: Boolean,
+    onRequestPermission: () -> Unit,
+    onEnableLocation: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.25f),
+                color = Color.White.copy(alpha = 0.22f),
                 shape = RoundedCornerShape(16.dp)
             ),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xBB121620) // Translucent deep camera overlay
+        color = Color(0xCC0E1424) // Deep translucent slate camera glass
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            // Header: GEO STAMP Branding + Live Accuracy Chip
+            // Row 1: Status indicator & Live Accuracy Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = Color(0xFF64B5F6),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "GEO STAMP",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        letterSpacing = 1.5.sp,
-                        color = Color(0xFF64B5F6)
-                    )
-                }
+                when {
+                    !hasLocationPermission -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { onRequestPermission() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFFBBF24),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "Permission Needed",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = Color(0xFFFBBF24)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFFBBF24).copy(alpha = 0.2f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Grant",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFBBF24)
+                                )
+                            }
+                        }
+                    }
 
-                if (location?.accuracy != null) {
-                    val (badgeColor, text) = when {
-                        location.accuracy <= 10f -> AccuracyGood to "±${location.accuracy.toInt()}m"
-                        location.accuracy <= 30f -> AccuracyMedium to "±${location.accuracy.toInt()}m"
-                        else -> AccuracyPoor to "±${location.accuracy.toInt()}m"
+                    !isLocationEnabled -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { onEnableLocation() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOff,
+                                contentDescription = null,
+                                tint = Color(0xFFF87171),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "Location is Turned Off",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = Color(0xFFF87171)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFF87171).copy(alpha = 0.25f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Turn On Location",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(badgeColor)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = text,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+
+                    location == null -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF38BDF8),
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "ACQUIRING GPS...",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                letterSpacing = 0.8.sp,
+                                color = Color(0xFF38BDF8)
+                            )
+                        }
                     }
-                } else {
+
+                    else -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (location.isHighAccuracy) AccuracyGood else AccuracyMedium)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (location.isHighAccuracy) "LOCATION READY" else "GPS FIX ACQUIRED",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                letterSpacing = 0.8.sp,
+                                color = if (location.isHighAccuracy) Color(0xFF4ADE80) else Color(0xFFFBBF24)
+                            )
+                        }
+
+                        // Accuracy chip
+                        location.accuracy?.let { acc ->
+                            val (badgeColor, text) = when {
+                                acc <= 10f -> AccuracyGood to "±${acc.toInt()}m"
+                                acc <= 30f -> AccuracyMedium to "±${acc.toInt()}m"
+                                else -> AccuracyPoor to "±${acc.toInt()}m"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(badgeColor)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = text,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Row 2: Concise Address or Location Status
+            val addressText = when {
+                !isLocationEnabled -> "GPS services disabled on device"
+                !hasLocationPermission -> "Location access required to geotag photos"
+                location == null -> "Searching for GPS satellites..."
+                else -> address?.conciseAddress
+                    ?: address?.addressLine
+                    ?: listOfNotNull(address?.featureName, address?.city, address?.state).joinToString(", ").ifBlank {
+                        "GPS Location Acquired"
+                    }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = if (location != null) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = addressText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Row 3: Coordinates & Altitude / Time
+            if (location != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "Acquiring GPS...",
+                        text = LocationFormatter.formatCardinalCoordinates(location.latitude, location.longitude),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+
+                    val altStr = location.altitude?.let { "Alt: ${LocationFormatter.formatAltitude(it)}" }
+                    val timeStr = LocationFormatter.formatTimestamp(location.timestamp)
+                    val rightStr = if (altStr != null) "$altStr • $timeStr" else timeStr
+
+                    Text(
+                        text = rightStr,
                         fontSize = 10.sp,
                         color = Color.White.copy(alpha = 0.7f)
                     )
                 }
             }
-
-            // Address Line
-            val displayAddress = address?.addressLine
-                ?: listOfNotNull(address?.city, address?.state, address?.country).joinToString(", ").ifBlank {
-                    if (location != null) "Real-time GPS Fix Acquired" else "Searching for satellites..."
-                }
-
-            Text(
-                text = displayAddress,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Coordinates
-            if (location != null) {
-                Text(
-                    text = "Lat: ${LocationFormatter.formatLatitude(location.latitude)}°   Long: ${LocationFormatter.formatLongitude(location.longitude)}°",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-            }
-
-            // Telemetry row (Alt, Speed, Bearing, Timestamp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                location?.altitude?.let {
-                    TelemetryChip(icon = Icons.Default.Height, text = LocationFormatter.formatAltitude(it))
-                }
-                location?.bearing?.let {
-                    TelemetryChip(icon = Icons.Default.Explore, text = LocationFormatter.formatBearing(it))
-                }
-                location?.speed?.let {
-                    if (it > 0.5f) {
-                        TelemetryChip(icon = Icons.Default.Speed, text = LocationFormatter.formatSpeed(it))
-                    }
-                }
-                val timeStr = LocationFormatter.formatTimestamp(location?.timestamp ?: System.currentTimeMillis())
-                TelemetryChip(icon = Icons.Default.AccessTime, text = timeStr)
-            }
         }
-    }
-}
-
-@Composable
-private fun TelemetryChip(
-    icon: ImageVector,
-    text: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.7f),
-            modifier = Modifier.size(12.dp)
-        )
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            color = Color.White.copy(alpha = 0.8f)
-        )
     }
 }

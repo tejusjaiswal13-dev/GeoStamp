@@ -10,7 +10,7 @@ package com.geostamp.app.model
  * @property speed The speed at the time of the location fix in meters/second, or null if unavailable.
  * @property bearing The bearing (direction of travel) in degrees, or null if unavailable.
  * @property timestamp The UTC time of the fix in milliseconds since epoch (System.currentTimeMillis()).
- * @property provider The name of the provider that generated this fix (e.g., "gps", "network"), or null.
+ * @property provider The name of the provider that generated this fix (e.g., "gps", "fused"), or null.
  */
 data class LocationData(
     val latitude: Double,
@@ -21,17 +21,24 @@ data class LocationData(
     val bearing: Float? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val provider: String? = null,
-)
+) {
+    /** Whether this fix has high accuracy (25 meters or better). */
+    val isHighAccuracy: Boolean get() = accuracy != null && accuracy <= 25f
+
+    /** Whether this location fix was received recently (within the last 30 seconds). */
+    val isFresh: Boolean get() = (System.currentTimeMillis() - timestamp) < 30_000L
+}
 
 /**
  * Represents a reverse-geocoded address associated with a location.
  *
- * @property addressLine The full formatted address line (e.g., "123 Main St, Springfield, IL 62704").
+ * @property addressLine The full formatted address line.
  * @property city The city or locality name.
  * @property state The state or administrative area name.
  * @property country The country name.
  * @property postalCode The postal or ZIP code.
- * @property featureName The locality or feature name (e.g., a landmark or neighborhood).
+ * @property featureName The locality or feature name.
+ * @property conciseAddress A clean, concise formatted address suitable for mobile display (e.g. "Civil Lines, Prayagraj, Uttar Pradesh").
  */
 data class AddressData(
     val addressLine: String? = null,
@@ -40,16 +47,15 @@ data class AddressData(
     val country: String? = null,
     val postalCode: String? = null,
     val featureName: String? = null,
+    val conciseAddress: String? = null,
 )
 
 /**
  * Sealed interface representing all possible UI states for location acquisition.
- *
- * Use this with a `when` expression to exhaustively handle every state in the UI layer.
  */
 sealed interface LocationUiState {
 
-    /** Location data is being acquired. */
+    /** Location data is being actively acquired. */
     data object Loading : LocationUiState
 
     /**
@@ -57,17 +63,18 @@ sealed interface LocationUiState {
      *
      * @property data The current [LocationData].
      * @property address The reverse-geocoded [AddressData], or null if geocoding is unavailable.
+     * @property isAcquiringBetterFix True if a preliminary fix is displayed while seeking higher accuracy.
      */
     data class Available(
         val data: LocationData,
         val address: AddressData? = null,
+        val isAcquiringBetterFix: Boolean = false,
     ) : LocationUiState
 
     /**
      * The required location permission has been denied by the user.
      *
-     * @property isPermanentlyDenied `true` if the user selected "Don't ask again",
-     *   meaning the permission can only be granted from system settings.
+     * @property isPermanentlyDenied `true` if permission can only be granted from system settings.
      */
     data class PermissionDenied(
         val isPermanentlyDenied: Boolean = false,
