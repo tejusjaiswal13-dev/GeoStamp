@@ -53,7 +53,7 @@ fun ContactUsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val supportEmail = "JSwal13@gmail.com"
+    val supportEmail = "tejusjaiswal13@gmail.com"
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
